@@ -74,8 +74,25 @@ int writeCodeplug(QCommandLineParser &parser, QCoreApplication &app) {
   }
 
   if (! parser.isSet("verbose")) {
-    showProgress();
-    QObject::connect(radio, &Radio::downloadProgress, updateProgress);
+    // Uploads typically emit 0–50% while reading the device codeplug, then 50–100%
+    // while writing. Show those as two separate 0–100% steps for clarity.
+    QObject::connect(radio, &Radio::uploadProgress, [phase = 0](int percent) mutable {
+      if (percent < 50) {
+        if (1 != phase) {
+          beginProgressPhase("STEP 1: Reading codeplug from radio");
+          phase = 1;
+        }
+        updateProgress(static_cast<unsigned>(percent * 2));
+      } else {
+        if (2 != phase) {
+          if (1 == phase)
+            updateProgress(100);
+          beginProgressPhase("STEP 2: Writing codeplug to radio");
+          phase = 2;
+        }
+        updateProgress(static_cast<unsigned>((percent - 50) * 2));
+      }
+    });
   }
 
   Codeplug::Flags flags;

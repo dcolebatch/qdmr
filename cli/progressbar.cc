@@ -15,3 +15,8 @@ void updateProgress(unsigned percent) {
   std::cerr << "\033[1A\033[K";
   showProgress(percent);
 }
+
+void beginProgressPhase(const char *label) {
+  std::cerr << label << std::endl;
+  showProgress(0);
+}
