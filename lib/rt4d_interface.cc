@@ -10,6 +10,8 @@
 #include <qendian.h>
 
 #define TIMEOUT 5000
+#define MAX_READ_RETRY 5
+#define READ_RETRY_DELAY_MS 200
 
 
 uint8_t _rt4d_crc(uint8_t *data, size_t size) {
@@ -230,13 +232,26 @@ RT4DInterface::read(uint32_t bank, uint32_t address, uint8_t *data, int nbytes, 
 
   ReadRequest req(address);
   ReadResponse res;
-  if (! sendReceive(req, res, err)) {
-    errMsg(err) << "Cannot read from " << Qt::hex << address << "h " << 1024 << " bytes.";
-    return false;
+  ErrorStack attemptErr;
+  for (int attempt = 0; attempt < MAX_READ_RETRY; attempt++) {
+    // Drop any late/partial bytes from a previous failed attempt.
+    clear(QSerialPort::Input);
+    attemptErr = ErrorStack();
+    if (sendReceive(req, res, attemptErr)) {
+      std::memcpy(data, res.payload, nbytes);
+      return true;
+    }
+    if (attempt + 1 < MAX_READ_RETRY) {
+      logDebug() << "Read @" << QString::number(address, 16) << "h attempt "
+                 << (attempt + 1) << " failed, retrying...";
+      QThread::msleep(READ_RETRY_DELAY_MS);
+    }
   }
-  std::memcpy(data, res.payload, nbytes);
 
-  return true;
+  err.take(attemptErr);
+  errMsg(err) << "Cannot read from " << QString::number(address, 16)
+              << "h 1024 bytes after " << MAX_READ_RETRY << " attempts.";
+  return false;
 }
 
 
