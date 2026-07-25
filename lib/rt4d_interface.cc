@@ -242,8 +242,8 @@ RT4DInterface::read(uint32_t bank, uint32_t address, uint8_t *data, int nbytes, 
       return true;
     }
     if (attempt + 1 < MAX_READ_RETRY) {
-      logDebug() << "Read @" << QString::number(address, 16) << "h attempt "
-                 << (attempt + 1) << " failed, retrying...";
+      logWarn() << "Retrying page at " << QString::number(address, 16)
+                << "h. Attempt " << (attempt + 1) << " of " << MAX_READ_RETRY << ".";
       QThread::msleep(READ_RETRY_DELAY_MS);
     }
   }
@@ -419,8 +419,12 @@ RT4DInterface::receive(char *data, qint64 n, int timeout, const ErrorStack &err)
 
   while (n) {
     if (! waitForReadyRead(timeout)) {
-      errMsg(err) << "QSerialPort: " << errorString() << ".";
-      errMsg(err) << "Cannot read from serial port, timeout.";
+      // Push without errMsg so recoverable timeouts during page retries are not
+      // logged as hard ERROR; the caller still gets the messages on the stack.
+      err.push(ErrorStack::Message(__FILE__, __LINE__,
+                                   QString("QSerialPort: %1.").arg(errorString())));
+      err.push(ErrorStack::Message(__FILE__, __LINE__,
+                                   "Cannot read from serial port, timeout."));
       return false;
     }
     auto k = QSerialPort::read(data, n);

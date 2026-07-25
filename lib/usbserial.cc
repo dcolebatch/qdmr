@@ -97,6 +97,12 @@ USBSerial::close() {
 
 void
 USBSerial::onError(QSerialPort::SerialPortError err) {
+  // Timeouts are often expected when callers use waitForReadyRead and handle
+  // failure themselves (e.g. RT-4D page retries). Keep other errors loud.
+  if (QSerialPort::TimeoutError == err) {
+    logDebug() << "Serial port error: (" << err << ") " << errorString() << ".";
+    return;
+  }
   logError() << "Serial port error: (" << err << ") " << errorString() << ".";
 }
 
