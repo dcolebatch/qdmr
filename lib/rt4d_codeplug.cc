@@ -1533,6 +1533,9 @@ RT4DCodeplug::ChannelElement::encode(const Channel *ch, Context &ctx, const Erro
     clearGroupListIndex();
     if (!dmr->groupListRef()->isNull())
       setGroupListIndex(ctx.index(dmr->groupList()));
+    clearEncryptionKeyIndex();
+    if (dmr->commercialExtension() && dmr->commercialExtension()->encryptionKey())
+      setEncryptionKeyIndex(ctx.index(dmr->commercialExtension()->encryptionKey()));
     enableChannelDmrId(!dmr->radioIdRef()->isNull() && !dmr->radioId()->is<DefaultRadioID>());
     if (channelDmrIdEnabled())
       setChannelDmrId(dmr->radioId()->number());
